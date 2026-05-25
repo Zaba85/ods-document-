@@ -1,125 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import logo from './assets/logo.png'
-type DocType = 'ODS' | 'TDS'
-type Project = { id: string; name: string }
-type Station = { id: string; name: string }
-
-type SideId = 'front' | 'rear' | 'common'
-
-type SubProject = { id: string; name: string; allowedDocTypes: DocType[] }
-
-type ServerFile = { name: string; url: string; storagePath: string }
+import { DocType, Project, ServerFile, SideId, Station, SubProject } from './lib/utils/types'
+import { commonNodesByProject, eqcSubProjects, projects, stationsByProjectSides } from './lib/utils/configTree'
 
 const API_BASE = 'http://localhost:3000/api'
-
-const projects: Project[] = [
-  { id: '1', name: 'BMW G266' },
-  { id: '2', name: 'BMW G2X' },
-  { id: '3', name: 'Foaming' },
-  { id: '4', name: 'W206' },
-  { id: '5', name: 'EQC' },
-  { id: '6', name: 'W214' },
-  { id: '7', name: 'W520' },
-  { id: '8', name: 'IMG Covering' },
-  { id: '9', name: 'Opel Predprocess' },
-  { id: '10', name: 'Opel Assembly' },
-  { id: '11', name: 'X540' },
-]
-
-const eqcSubProjects: SubProject[] = [
-  { id: '206', name: '206', allowedDocTypes: ['ODS', 'TDS'] },
-  { id: '297', name: '297', allowedDocTypes: ['ODS', 'TDS'] },
-  { id: '295', name: '295', allowedDocTypes: ['ODS', 'TDS'] },
-  { id: 'X540', name: 'X540', allowedDocTypes: ['ODS', 'TDS'] },
-  { id: 'X520', name: 'X520', allowedDocTypes: ['ODS', 'TDS'] },
-  { id: 'W214', name: 'W214', allowedDocTypes: ['ODS', 'TDS'] },
-]
 
 function getSubProjectsFor(projectId: string): SubProject[] {
   if (projectId === '5') return eqcSubProjects
   return []
 }
 
-const stationsByProjectSides: Record<
-  string,
-  {
-    front?: Station[]
-    rear?: Station[]
-    common?: boolean
-  }
-> = {
-  '1': {
-    common: true,
-    front: [
-      { id: 'st1', name: 'Stanica 1' },
-      { id: 'st2', name: 'Stanica 2' },
-      { id: 'rework', name: 'Rework' },
-    ],
-    rear: [
-      { id: 'st1', name: 'Stanica 1' },
-      { id: 'st2', name: 'Stanica 2' },
-      { id: 'rework', name: 'Rework' },
-    ],
-  },
 
-  '2': {
-    common: true,
-    front: [
-      { id: 'st1', name: 'Stanica 1' },
-      { id: 'qa', name: 'Quality' },
-      { id: 'pack', name: 'Packing' },
-    ],
-    rear: [{ id: 'rework', name: 'Rework' }],
-  },
-
-  '5': {
-    common: true,
-    front: [
-      { id: 'st1', name: 'Stanica 1' },
-      { id: 'st2', name: 'Stanica 2' },
-    ],
-    rear: [
-      { id: 'st3', name: 'Stanica 3' },
-      { id: 'rework', name: 'Rework' },
-    ],
-  },
-
-  '11': {
-    common: true,
-    front: [
-      { id: 'st_tf_assy', name: 'ST T/F Assy' },
-      { id: 'st0', name: 'ST0' },
-      { id: 'st1', name: 'ST1' },
-      { id: 'st2', name: 'ST2' },
-      { id: 'st3', name: 'ST3' },
-      { id: 'st4', name: 'ST4' },
-      { id: 'st5', name: 'ST5' },
-      { id: 'st6', name: 'ST6' },
-    ],
-    rear: [
-      { id: 'st0', name: 'ST0' },
-      { id: 'st1', name: 'ST1' },
-      { id: 'st2', name: 'ST2' },
-      { id: 'st3', name: 'ST3' },
-      { id: 'st4', name: 'ST4' },
-      { id: 'st5', name: 'ST5' },
-      { id: 'st6', name: 'ST6' },
-    ],
-  },
-}
-
-const commonNodesByProject: Record<string, { id: string; name: string }[]> = {
-  '11': [
-    { id: 'rework', name: 'Rework' },
-    { id: 'simple_rework', name: 'Simple rework' },
-    { id: 'fc0', name: 'FC0' },
-    { id: 'fc', name: 'FC' },
-    { id: 'gp12', name: 'GP12' },
-    { id: 'mala_sekvencia', name: 'Malá sekvecia' },
-    { id: 'vymena_nestov', name: 'Výmena nestov' },
-  ],
-}
 
 const isPdfName = (name: string) => name.toLowerCase().endsWith('.pdf')
 const isExcelName = (name: string) => {

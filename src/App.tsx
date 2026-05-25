@@ -14,7 +14,7 @@ type ServerFile = { name: string; url: string; storagePath: string }
 const API_BASE = 'http://localhost:3000/api'
 
 const projects: Project[] = [
-  { id: '1', name: 'BMW G26' },
+  { id: '1', name: 'BMW G266' },
   { id: '2', name: 'BMW G2X' },
   { id: '3', name: 'Foaming' },
   { id: '4', name: 'W206' },

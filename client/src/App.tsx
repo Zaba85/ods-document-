@@ -7,7 +7,7 @@ import { commonNodesByProject, eqcSubProjects, projects, stationsByProjectSides 
 const API_BASE = 'http://localhost:3000/api'
 
 function getSubProjectsFor(projectId: string): SubProject[] {
-  if (projectId === '5') return eqcSubProjects
+  if (projectId === '7') return eqcSubProjects
   return []
 }
 
@@ -31,7 +31,7 @@ function sideLabel(side: SideId) {
 }
 
 function buildFolderId(projectId: string, subId: string | null, side: SideId, stationId?: string, commonItemId?: string) {
-  if (projectId === '5') {
+  if (projectId === '7') {
     if (side === 'common') {
       if (commonItemId) return `eqc_${subId ?? 'na'}_common__${commonItemId}`
       return `eqc_${subId ?? 'na'}_common`
@@ -189,6 +189,7 @@ export default function App() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setAuthError((err as any).error ?? 'Nahratie zlyhalo.')
         return
       }
@@ -218,6 +219,7 @@ export default function App() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setAuthError((err as any).error ?? 'Zmazanie zlyhalo.')
         return
       }
@@ -325,7 +327,7 @@ export default function App() {
   const title = useMemo(() => {
     if (!selectedProject) return ''
     const parts: string[] = [selectedProject.name]
-    if (selectedProject.id === '5' && selectedSubProject) parts.push(selectedSubProject.name)
+    if (selectedProject.id === '7' && selectedSubProject) parts.push(selectedSubProject.name)
     if (selectedSide) parts.push(sideLabel(selectedSide))
     if (selectedSide === 'common' && selectedCommonItem) parts.push(selectedCommonItem.name)
     if (selectedSide && selectedSide !== 'common' && selectedStation) parts.push(selectedStation.name)
@@ -526,7 +528,7 @@ export default function App() {
           {filteredProjects.map((p) => {
             const expanded = expandedProjectId === p.id
             const active = selectedProject?.id === p.id
-            const isEqcProject = p.id === '5'
+            const isEqcProject = p.id === '7'
             const subProjects = getSubProjectsFor(p.id)
 
             return (

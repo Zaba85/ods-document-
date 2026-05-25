@@ -5,13 +5,15 @@ export const projects: Project[] = [
   { id: '2', name: 'BMW G2X' },
   { id: '3', name: 'Foaming' },
   { id: '4', name: 'W206' },
-  { id: '5', name: 'EQC' },
-  { id: '6', name: 'W214' },
-  { id: '7', name: 'W520' },
-  { id: '8', name: 'IMG Covering' },
-  { id: '9', name: 'Opel Predprocess' },
-  { id: '10', name: 'Opel Assembly' },
-  { id: '11', name: 'X540' },
+  { id: '5', name: 'W297'},
+  { id: '6', name: 'W295'},
+  { id: '7', name: 'EQC' },
+  { id: '8', name: 'W214' },
+  { id: '9', name: 'W520' },
+  { id: '10', name: 'IMG Covering' },
+  { id: '11', name: 'Opel Predprocess' },
+  { id: '12', name: 'Opel Assembly' },
+  { id: '13', name: 'X540' },
 ]
 
 export const eqcSubProjects: SubProject[] = [
@@ -67,7 +69,7 @@ export const stationsByProjectSides: Record<
     ],
   },
 
-  '11': {
+  '13': {
     common: true,
     front: [
       { id: 'st_tf_assy', name: 'ST T/F Assy' },
@@ -92,7 +94,7 @@ export const stationsByProjectSides: Record<
 }
 
 export const commonNodesByProject: Record<string, { id: string; name: string }[]> = {
-  '11': [
+  '13': [
     { id: 'rework', name: 'Rework' },
     { id: 'simple_rework', name: 'Simple rework' },
     { id: 'fc0', name: 'FC0' },

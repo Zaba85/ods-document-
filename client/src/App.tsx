@@ -2,49 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import logo from './assets/logo.png'
 import { DocType, Project, ServerFile, SideId, Station, SubProject } from './lib/utils/types'
-import { commonNodesByProject, eqcSubProjects, projects, stationsByProjectSides } from './lib/utils/configTree'
+import { commonNodesByProject, projects, stationsByProjectSides } from './lib/utils/configTree'
+import {getSubProjectsFor,isPdfName,isExcelName,openInNewTab,sideLabel,buildFolderId,
+} from './lib/utils/helpers'
+import TopBar from './components/TopBar'
+import FileList from './components/FileList'
+import LoginScreen from './components/LoginScreen'
+import PdfModal from './components/PdfModal'
+
+
 
 const API_BASE = 'http://localhost:3000/api'
-
-function getSubProjectsFor(projectId: string): SubProject[] {
-  if (projectId === '7') return eqcSubProjects
-  return []
-}
-
-
-
-const isPdfName = (name: string) => name.toLowerCase().endsWith('.pdf')
-const isExcelName = (name: string) => {
-  const n = name.toLowerCase()
-  return n.endsWith('.xls') || n.endsWith('.xlsx')
-}
-
-function openInNewTab(url?: string) {
-  if (!url) return
-  window.open(url, '_blank', 'noopener,noreferrer')
-}
-
-function sideLabel(side: SideId) {
-  if (side === 'front') return 'FRONT'
-  if (side === 'rear') return 'REAR'
-  return 'FRONT/REAR'
-}
-
-function buildFolderId(projectId: string, subId: string | null, side: SideId, stationId?: string, commonItemId?: string) {
-  if (projectId === '7') {
-    if (side === 'common') {
-      if (commonItemId) return `eqc_${subId ?? 'na'}_common__${commonItemId}`
-      return `eqc_${subId ?? 'na'}_common`
-    }
-    return `eqc_${subId ?? 'na'}_${side}_${stationId ?? 'na'}`
-  }
-
-  if (side === 'common') {
-    if (commonItemId) return `common__${commonItemId}`
-    return 'common'
-  }
-  return `${side}_${stationId ?? 'na'}`
-}
 
 type Role = 'user' | 'admin'
 
@@ -111,7 +79,7 @@ export default function App() {
   const folderId = useMemo(() => {
     if (!selectedProject || !selectedSide) return null
 
-    const subId = selectedProject.id === '5' ? (selectedSubProject?.id ?? null) : null
+    const subId = selectedProject.id === '7' ? (selectedSubProject?.id ?? null) : null
 
     if (selectedSide === 'common') {
       if ((commonNodesByProject[selectedProject.id] ?? []).length > 0) {
@@ -147,6 +115,7 @@ export default function App() {
         const still = list.find((x) => x.storagePath === activeFile.storagePath)
         setActiveFile(still ?? null)
       }
+
       setAuthError(null)
     } catch (e) {
       console.error(e)
@@ -161,7 +130,7 @@ export default function App() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadFiles()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject, folderId, selectedDocType])
 
   const uploadFile = async (file: File) => {
@@ -189,8 +158,7 @@ export default function App() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setAuthError((err as any).error ?? 'Nahratie zlyhalo.')
+        setAuthError((err as { error?: string }).error ?? 'Nahratie zlyhalo.')
         return
       }
 
@@ -219,8 +187,7 @@ export default function App() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setAuthError((err as any).error ?? 'Zmazanie zlyhalo.')
+        setAuthError((err as { error?: string }).error ?? 'Zmazanie zlyhalo.')
         return
       }
 
@@ -348,7 +315,6 @@ export default function App() {
       return
     }
 
-    // USER //
     if (name === 'user') {
       setRole('user')
       setIsAdmin(false)
@@ -358,7 +324,6 @@ export default function App() {
       return
     }
 
-    // ADMIN //
     if (name === 'admin') {
       if (!loginPass.trim()) {
         setLoginError('Zadaj heslo.')
@@ -406,94 +371,19 @@ export default function App() {
   }
 
   if (!isLoggedIn) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
-        <div
-          style={{
-            width: 'min(460px, 100%)',
-            borderRadius: 16,
-            padding: 22,
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          <div style={{ display: 'grid', gap: 14, justifyItems: 'center' }}>
-            <img src={logo} alt='Yanfeng' style={{ height: 44, objectFit: 'contain' }} />
-
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: 0.2 }}>ODS/TDS</div>
-              <div style={{ opacity: 0.75, marginTop: 2 }}>Document Center</div>
-            </div>
-
-            <div style={{ width: '100%', display: 'grid', gap: 10, marginTop: 6 }}>
-              <input
-                value={loginName}
-                onChange={(e) => setLoginName(e.target.value)}
-                type='text'
-                placeholder='Meno'
-                aria-label='Meno'
-                style={{
-                  width: '100%',
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  background: 'rgba(0,0,0,0.18)',
-                  color: 'white',
-                  outline: 'none',
-                  fontSize: 14,
-                }}
-              />
-
-              <input
-                value={loginPass}
-                onChange={(e) => setLoginPass(e.target.value)}
-                type='password'
-                placeholder='Heslo'
-                aria-label='Heslo'
-                style={{
-                  width: '100%',
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  background: 'rgba(0,0,0,0.18)',
-                  color: 'white',
-                  outline: 'none',
-                  fontSize: 14,
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void doLogin()
-                }}
-              />
-
-              <button
-                onClick={() => void doLogin()}
-                style={{
-                  width: '100%',
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  border: 'none',
-                  background: '#7c5cff',
-                  color: 'white',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                }}
-                disabled={loginLoading}
-              >
-                {loginLoading ? 'Prihlasujem…' : 'Prihlásiť'}
-              </button>
-
-              {loginError && (
-                <div style={{ width: '100%', color: '#ff8a8a', fontSize: 13, textAlign: 'center' }}>{loginError}</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
+  return (
+    <LoginScreen
+      logo={logo}
+      loginName={loginName}
+      loginPass={loginPass}
+      loginError={loginError}
+      loginLoading={loginLoading}
+      setLoginName={setLoginName}
+      setLoginPass={setLoginPass}
+      doLogin={() => void doLogin()}
+    />
+  )
+}
   return (
     <div className='app'>
       <aside className='sidebar'>
@@ -780,117 +670,44 @@ export default function App() {
         </div>
       </aside>
 
-      <main className='main'>
-        <div className='topbar'>
-          <div className='breadcrumb'>
-            <p className='title'>{title}</p>
-            <p className='sub'></p>
-          </div>
+      <TopBar
+  title={title}
+  canUseOpenPrint={canUseOpenPrint}
+  canUpload={canUpload}
+  canDelete={canDelete}
+  isAdmin={isAdmin}
+  uploadInputRef={uploadInputRef}
 
-          <div className='actionBar'>
-            <button className='btn' onClick={openSelected} disabled={!canUseOpenPrint}>
-              Otvoriť
-            </button>
-            <button className='btn' onClick={printSelected} disabled={!canUseOpenPrint}>
-              Tlačiť
-            </button>
+  openSelected={openSelected}
+  printSelected={printSelected}
+  deleteFile={() => activeFile && deleteFile(activeFile)}
+  uploadFile={uploadFile}
+  loadFiles={loadFiles}
 
-            {isAdmin && (
-              <>
-                <button className='btn primary' onClick={() => uploadInputRef.current?.click()} disabled={!canUpload}>
-                  Nahrať
-                </button>
-                <button className='btn danger' onClick={() => activeFile && deleteFile(activeFile)} disabled={!canDelete}>
-                  Zmazať
-                </button>
-              </>
-            )}
+  selectedDocType={selectedDocType}
+  folderId={folderId}
+/>
 
-            <button className='btn' onClick={loadFiles} disabled={!selectedDocType || !folderId}>
-              Refresh
-            </button>
+<FileList
+  files={files}
+  activeFile={activeFile}
+  loading={loading}
+  selectedProject={selectedProject}
+  folderId={folderId}
+  selectedDocType={selectedDocType}
+  isAdmin={isAdmin}
+  setActiveFile={setActiveFile}
+  isPdfName={isPdfName}
+  isExcelName={isExcelName}
+/>
+``<PdfModal
+  openDoc={openDoc}
+  isPdfName={isPdfName}
+  setOpenDoc={setOpenDoc}
+  printFromModal={printFromModal}
+/>
 
-            <input
-              ref={uploadInputRef}
-              type='file'
-              style={{ display: 'none' }}
-              accept='.pdf,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (!f) return
-                void uploadFile(f)
-                e.currentTarget.value = ''
-              }}
-            />
-          </div>
-        </div>
-
-        <div className='panel'>
-          <div className='panelHeader'>
-            <div className='badge'></div>
-            <div className='small'>Počet: {files.length}</div>
-          </div>
-
-          {loading && (
-            <div className='docRow'>
-              <div className='left'>
-                <div className='docName'>Načítavam…</div>
-              </div>
-            </div>
-          )}
-
-          {!loading && selectedProject && folderId && selectedDocType && files.length === 0 && (
-            <div className='docRow'>
-              <div className='left'>
-                <div className='docName'>Žiadne súbory</div>
-                <div className='docMeta'>{isAdmin ? 'Použi Nahrať.' : ''}</div>
-              </div>
-            </div>
-          )}
-
-          {files.map((f) => {
-            const selected = activeFile?.storagePath === f.storagePath
-            return (
-              <button
-                key={f.storagePath}
-                className={`docRow docRowButton ${selected ? 'activeRow' : ''}`}
-                onClick={() => setActiveFile(f)}
-              >
-                <div className='left'>
-                  <div className='docName'>{f.name}</div>
-                  <div className='docMeta'>
-                    <span className='urlEllipsis'>{f.url}</span>
-                  </div>
-                </div>
-                <div className='actions'>
-                  <span className={`fileTag ${isPdfName(f.name) ? 'pdf' : isExcelName(f.name) ? 'xls' : ''}`}>
-                    {isPdfName(f.name) ? 'PDF' : isExcelName(f.name) ? 'XLS' : 'FILE'}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {openDoc?.url && isPdfName(openDoc.name) && (
-          <div className='modalBackdrop' onClick={() => setOpenDoc(null)}>
-            <div className='modal' onClick={(e) => e.stopPropagation()}>
-              <div className='modalTop'>
-                <div className='docTitle'>{openDoc.name}</div>
-                <div className='btnRow'>
-                  <button className='btn' onClick={printFromModal}>
-                    Tlačiť
-                  </button>
-                  <button className='btn primary' onClick={() => setOpenDoc(null)}>
-                    Zavrieť
-                  </button>
-                </div>
-              </div>
-              <iframe id='pdfFrame' title='pdf' src={openDoc.url} />
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
+       
+      </div>
   )
 }

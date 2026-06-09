@@ -1,12 +1,15 @@
 import type { SideId, SubProject } from './types'
-import { eqcSubProjects } from './configTree'
+import { eqcSubProjects, slotSubProjects } from './configTree'
 
 /**
  * Vráti subprojekty (napr. EQC)
  */
 export function getSubProjectsFor(projectId: string): SubProject[] {
   if (projectId === '7') return eqcSubProjects
+  if (projectId === '14') return slotSubProjects
+
   return []
+ 
 }
 
 /**

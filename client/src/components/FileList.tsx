@@ -56,7 +56,11 @@ export default function FileList({
           <button
             key={f.storagePath}
             className={`docRow docRowButton ${selected ? 'activeRow' : ''}`}
-            onClick={() => setActiveFile(f)}
+            onClick={() => {
+              console.log('FILE ITEM:', f)
+              setActiveFile(f)
+            }}
+            
           >
             <div className='left'>
               <div className='docName'>{f.name}</div>

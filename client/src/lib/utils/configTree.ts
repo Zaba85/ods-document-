@@ -14,6 +14,7 @@ export const projects: Project[] = [
   { id: '11', name: 'Opel Predprocess' },
   { id: '12', name: 'Opel Assembly' },
   { id: '13', name: 'X540' },
+  { id: '14', name: 'Slot Coater' },
 ]
 
 export const eqcSubProjects: SubProject[] = [
@@ -23,6 +24,7 @@ export const eqcSubProjects: SubProject[] = [
   { id: 'X540', name: 'X540', allowedDocTypes: ['ODS', 'TDS'] },
   { id: 'X520', name: 'X520', allowedDocTypes: ['ODS', 'TDS'] },
   { id: 'W214', name: 'W214', allowedDocTypes: ['ODS', 'TDS'] },
+  
 ]
 
 export const stationsByProjectSides: Record<
@@ -68,6 +70,36 @@ export const stationsByProjectSides: Record<
       { id: 'rework', name: 'Rework' },
     ],
   },
+  '11': {
+  common: true,
+  front: [
+    { id: 'lamination-armrest-fr', name: 'Lamination Armrest FR' },
+    { id: 'gluing-armrest', name: 'Gluing Armrest FR/RR' },
+    { id: 'gluing-insert', name: 'Gluing Insert FR/RR' },
+    { id: 'weight-control', name: 'Weight Control FR/RR' },
+    { id: 'lamination-insert-fr', name: 'Lamination Insert FR' },
+    { id: 'lamination-podlozka', name: 'Lamination lepenie podložky FR/RR' },
+    { id: 'beltline-esl', name: 'Beltline-ESL' },
+    { id: 'gluing-beltline', name: 'Gluing Beltline' },
+  ],
+  rear: [
+    { id: 'lamination-armrest-rr', name: 'Lamination Armrest RR' },
+    { id: 'lamination-insert-rr', name: 'Lamination Insert RR' },
+  ],
+},
+
+  '12': {
+  common: true,
+  front: [
+    { id: 'st1', name: 'ST1' },
+    { id: 'st2', name: 'ST2' },
+    { id: 'st4', name: 'ST4' },
+    { id: 'final-check', name: 'Final Check' },
+    { id: 'gp12', name: 'GP12' },
+  ],
+  rear: [],
+},
+
 
   '13': {
     common: true,
@@ -103,4 +135,26 @@ export const commonNodesByProject: Record<string, { id: string; name: string }[]
     { id: 'mala_sekvencia', name: 'Malá sekvecia' },
     { id: 'vymena_nestov', name: 'Výmena nestov' },
   ],
+}
+export const slotSubProjects: SubProject[] = [
+  { id: 'slot-206', name: '206', allowedDocTypes: ['ODS','TDS'] },
+  { id: 'slot-214', name: '214', allowedDocTypes: ['ODS','TDS'] },
+  { id: 'slot-297', name: '297', allowedDocTypes: ['ODS','TDS'] },
+  { id: 'slot-520', name: '520', allowedDocTypes: ['ODS','TDS'] },
+]
+export const stationsBySubProject: Record<string, Station[]> = {
+  'slot-206': [
+    { id: '206-main-carrier', name: 'Main carrier glue application' },
+    { id: '206-mappocet', name: 'Mappocet glue application' },
+    { id: '206-beltline-glue', name: '206 Beltline glue application' },
+    { id: '206-beltline-weight', name: '206 beltline meranie hmotnosti' },
+  ],
+
+  'slot-214': [
+    { id: '214-main-carrier', name: '214 Main carrier glue application' },
+    { id: '214-main-weight', name: '214 Main carrier meranie hmotnosti' },
+  ],
+
+  'slot-297': [],
+  'slot-520': [],
 }

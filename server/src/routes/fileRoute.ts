@@ -11,7 +11,9 @@ const getBaseUrl = (c: any) => {
   return `${url.protocol}//${url.host}`
 }
 
-fileRoute.post('/api/check-admin', requireAdmin, (c) => c.json({ ok: true }))
+fileRoute.post('/check-admin', requireAdmin, (c) => {
+  return c.text('OK', 200)
+})
 
 fileRoute.get('/files', async (c) => {
   const { projectId, folderId, docType } = c.req.query()
@@ -24,7 +26,11 @@ fileRoute.get('/files', async (c) => {
     const files = names.map((fname) => ({
       name: fname,
       url: `${baseUrl}/uploads/${encodeURIComponent(projectId)}/${encodeURIComponent(folderId)}/${encodeURIComponent(docType)}/${fname}`,
+
+      // ✅ FIX
+      storagePath: `${projectId}/${folderId}/${docType}/${fname}`,
     }))
+
     return c.json({ files })
   } catch (error) {
     return c.json({ error: 'Failed to list files' }, 500)

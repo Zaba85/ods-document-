@@ -10,7 +10,7 @@ const PORT = Number(process.env.PORT || 3000)
 app.use(
   '*',
   cors({
-    origin: '*', // Uprav si podľa potreby
+    origin: '*', 
     allowHeaders: ['Content-Type', 'x-admin-key'],
     allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,

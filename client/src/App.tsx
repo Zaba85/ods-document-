@@ -2,19 +2,20 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import logo from './assets/logo.png'
 import { DocType, Project, ServerFile, SideId, Station, SubProject } from './lib/utils/types'
-import { commonNodesByProject, projects, stationsByProjectSides } from './lib/utils/configTree'
-import {getSubProjectsFor,isPdfName,isExcelName,openInNewTab,sideLabel,buildFolderId,
-} from './lib/utils/helpers'
+import {commonNodesByProject,projects,stationsByProjectSides,stationsBySubProject,} from './lib/utils/configTree'
+import {getSubProjectsFor,isPdfName,isExcelName,openInNewTab,sideLabel,buildFolderId,} from './lib/utils/helpers'
+import { computeViewState } from './lib/utils/viewLogic'
 import TopBar from './components/TopBar'
 import FileList from './components/FileList'
 import LoginScreen from './components/LoginScreen'
 import PdfModal from './components/PdfModal'
-
-
+import Sidebar from './components/Sidebar'
+import Content from './components/Content'
 
 const API_BASE = 'http://localhost:3000/api'
 
 type Role = 'user' | 'admin'
+type CommonItem = { id: string; name: string }
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -28,12 +29,11 @@ export default function App() {
   const [adminKey, setAdminKey] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
 
-  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [selectedSubProject, setSelectedSubProject] = useState<SubProject | null>(null)
   const [selectedSide, setSelectedSide] = useState<SideId | null>(null)
   const [selectedStation, setSelectedStation] = useState<Station | null>(null)
-  const [selectedCommonItem, setSelectedCommonItem] = useState<{ id: string; name: string } | null>(null)
+  const [selectedCommonItem, setSelectedCommonItem] = useState<CommonItem | null>(null)
   const [selectedDocType, setSelectedDocType] = useState<DocType | null>(null)
 
   const [queryText, setQueryText] = useState('')
@@ -71,13 +71,26 @@ export default function App() {
     return []
   }, [selectedProject, selectedSide])
 
-  const commonItemsForProject = useMemo(() => {
+  const stationsForSelectedSubProject = useMemo<Station[]>(() => {
+    if (!selectedSubProject) return []
+    return stationsBySubProject[selectedSubProject.id] ?? []
+  }, [selectedSubProject])
+
+  const commonItemsForProject = useMemo<CommonItem[]>(() => {
     if (!selectedProject) return []
     return commonNodesByProject[selectedProject.id] ?? []
   }, [selectedProject])
 
   const folderId = useMemo(() => {
-    if (!selectedProject || !selectedSide) return null
+    if (!selectedProject) return null
+
+    // Slot Coater: project -> subproject -> station -> ODS/TDS
+    if (selectedProject.id === '14') {
+      if (!selectedSubProject || !selectedStation) return null
+      return buildFolderId(selectedProject.id, selectedSubProject.id, 'front', selectedStation.id)
+    }
+
+    if (!selectedSide) return null
 
     const subId = selectedProject.id === '7' ? (selectedSubProject?.id ?? null) : null
 
@@ -102,9 +115,10 @@ export default function App() {
 
     setLoading(true)
     try {
-      const url = `${API_BASE}/files?projectId=${encodeURIComponent(
-        selectedProject.id,
-      )}&folderId=${encodeURIComponent(folderId)}&docType=${encodeURIComponent(selectedDocType)}`
+      const url =
+        `${API_BASE}/files?projectId=${encodeURIComponent(selectedProject.id)}` +
+        `&folderId=${encodeURIComponent(folderId)}` +
+        `&docType=${encodeURIComponent(selectedDocType)}`
 
       const res = await fetch(url)
       const json = await res.json()
@@ -130,13 +144,13 @@ export default function App() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadFiles()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject, folderId, selectedDocType])
 
   const uploadFile = async (file: File) => {
     if (!isAdmin) return
     if (!selectedProject || !folderId || !selectedDocType) {
-      setAuthError('Najprv vyber vľavo všetko (až po ODS/TDS).')
+      setAuthError('Najprv vyber všetko až po ODS/TDS.')
       return
     }
 
@@ -146,9 +160,10 @@ export default function App() {
       const form = new FormData()
       form.append('file', file)
 
-      const url = `${API_BASE}/upload?projectId=${encodeURIComponent(
-        selectedProject.id,
-      )}&folderId=${encodeURIComponent(folderId)}&docType=${encodeURIComponent(selectedDocType)}`
+      const url =
+        `${API_BASE}/upload?projectId=${encodeURIComponent(selectedProject.id)}` +
+        `&folderId=${encodeURIComponent(folderId)}` +
+        `&docType=${encodeURIComponent(selectedDocType)}`
 
       const res = await fetch(url, {
         method: 'POST',
@@ -172,9 +187,12 @@ export default function App() {
   }
 
   const deleteFile = async (f: ServerFile) => {
+    console.log('DELETE FILE:', f)
+
     if (!isAdmin) return
     setLoading(true)
     setAuthError(null)
+
     try {
       const res = await fetch(`${API_BASE}/files`, {
         method: 'DELETE',
@@ -212,7 +230,6 @@ export default function App() {
   }
 
   const onSelectProject = (p: Project) => {
-    setExpandedProjectId((prev) => (prev === p.id ? null : p.id))
     setSelectedProject(p)
     setSelectedSubProject(null)
     resetLower()
@@ -241,7 +258,7 @@ export default function App() {
     setOpenDoc(null)
   }
 
-  const onSelectCommonItem = (item: { id: string; name: string }) => {
+  const onSelectCommonItem = (item: CommonItem) => {
     setSelectedCommonItem(item)
     setSelectedDocType(null)
     setFiles([])
@@ -257,7 +274,6 @@ export default function App() {
   }
 
   const resetAll = () => {
-    setExpandedProjectId(null)
     setSelectedProject(null)
     setSelectedSubProject(null)
     resetLower()
@@ -293,14 +309,38 @@ export default function App() {
 
   const title = useMemo(() => {
     if (!selectedProject) return ''
+
     const parts: string[] = [selectedProject.name]
-    if (selectedProject.id === '7' && selectedSubProject) parts.push(selectedSubProject.name)
-    if (selectedSide) parts.push(sideLabel(selectedSide))
-    if (selectedSide === 'common' && selectedCommonItem) parts.push(selectedCommonItem.name)
-    if (selectedSide && selectedSide !== 'common' && selectedStation) parts.push(selectedStation.name)
-    if (selectedDocType) parts.push(selectedDocType)
+
+    if ((selectedProject.id === '7' || selectedProject.id === '14') && selectedSubProject) {
+      parts.push(selectedSubProject.name)
+    }
+
+    if (selectedProject.id !== '14' && selectedSide) {
+      parts.push(sideLabel(selectedSide))
+    }
+
+    if (selectedSide === 'common' && selectedCommonItem) {
+      parts.push(selectedCommonItem.name)
+    }
+
+    if (selectedStation) {
+      parts.push(selectedStation.name)
+    }
+
+    if (selectedDocType) {
+      parts.push(selectedDocType)
+    }
+
     return parts.join(' → ')
-  }, [selectedProject, selectedSubProject, selectedSide, selectedStation, selectedDocType, selectedCommonItem])
+  }, [
+    selectedProject,
+    selectedSubProject,
+    selectedSide,
+    selectedStation,
+    selectedDocType,
+    selectedCommonItem,
+  ])
 
   const doLogout = () => {
     window.location.reload()
@@ -334,13 +374,13 @@ export default function App() {
       try {
         const res = await fetch(`${API_BASE}/check-admin`, {
           method: 'POST',
-          headers: { 'x-admin-key': loginPass },
+          headers: { 'x-admin-key': loginPass.trim() },
         })
 
         if (res.status === 200) {
           setRole('admin')
           setIsAdmin(true)
-          setAdminKey(loginPass)
+          setAdminKey(loginPass.trim())
           setAuthError(null)
           setIsLoggedIn(true)
           return
@@ -364,6 +404,7 @@ export default function App() {
       } finally {
         setLoginLoading(false)
       }
+
       return
     }
 
@@ -371,348 +412,170 @@ export default function App() {
   }
 
   if (!isLoggedIn) {
-  return (
-    <LoginScreen
-      logo={logo}
-      loginName={loginName}
-      loginPass={loginPass}
-      loginError={loginError}
-      loginLoading={loginLoading}
-      setLoginName={setLoginName}
-      setLoginPass={setLoginPass}
-      doLogin={() => void doLogin()}
-    />
-  )
-}
+    return (
+      <LoginScreen
+        logo={logo}
+        loginName={loginName}
+        loginPass={loginPass}
+        loginError={loginError}
+        loginLoading={loginLoading}
+        setLoginName={setLoginName}
+        setLoginPass={setLoginPass}
+        doLogin={() => void doLogin()}
+      />
+    )
+  }
+
+  const {
+    showSubprojects,
+    showSides,
+    showCommonItems,
+    showStations,
+    showDocTypes,
+  } = computeViewState({
+    selectedProject,
+    selectedSubProject,
+    selectedSide,
+    selectedStation,
+    commonItemsForProject,
+    selectedCommonItem,
+  })
+
+  const stationsToRender =
+    selectedProject?.id === '14'
+      ? stationsForSelectedSubProject
+      : stationsForSelectedSide
+
   return (
     <div className='app'>
-      <aside className='sidebar'>
-      <div className='headerCard'>
-          <div className='appMark'>
-            <img className='appLogoImg' src={logo} alt='Yanfeng' />
-            <div className='appNameBlock'>
-              <div className='appName'>ODS/TDS</div>
-              <div className='appTag'>Document Center</div>
-            </div>
-          </div>
-        </div>
+      <Sidebar
+        logo={logo}
+        role={role}
+        authError={authError}
+        queryText={queryText}
+        setQueryText={setQueryText}
+        projects={filteredProjects}
+        selectedProject={selectedProject}
+        onSelectProject={onSelectProject}
+        resetAll={resetAll}
+        doLogout={doLogout}
+      />
 
-        <div className='loginCard'>
-          <div className='loginRow'>
-            <div className='loginStatus'>
-              <span className='statusDot' />
-              <span className='statusText'>{role === 'admin' ? 'Admin' : 'User'}</span>
-            </div>
-            <button className='btn' onClick={doLogout}>
-              Odhlásiť
+      <div className='rightPanel'>
+        <TopBar
+          title={title}
+          canUseOpenPrint={canUseOpenPrint}
+          canUpload={canUpload}
+          canDelete={canDelete}
+          isAdmin={isAdmin}
+          uploadInputRef={uploadInputRef}
+          openSelected={openSelected}
+          printSelected={printSelected}
+          deleteFile={() => {
+            if (activeFile) void deleteFile(activeFile)
+          }}
+          uploadFile={uploadFile}
+          loadFiles={loadFiles}
+          selectedDocType={selectedDocType}
+          folderId={folderId}
+        />
+
+        {showSubprojects && selectedProject && (
+          <div className='grid3'>
+            {getSubProjectsFor(selectedProject.id).map((sp) => (
+              <button
+                key={sp.id}
+                className={`cardBtn ${selectedSubProject?.id === sp.id ? 'active' : ''}`}
+                onClick={() => onSelectSubProject(sp)}
+              >
+                <div className='icon'>📁</div>
+                <span>{sp.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showSides && (
+          <div className='grid3'>
+            {availableSides.map((side) => (
+              <button
+                key={side}
+                className={`cardBtn big ${selectedSide === side ? 'active' : ''} ${side}`}
+                onClick={() => onSelectSide(side)}
+              >
+                <div className='icon'>
+                  {side === 'front' && '🟦'}
+                  {side === 'rear' && '🟧'}
+                  {side === 'common' && '🟪'}
+                </div>
+                <span>{sideLabel(side)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showCommonItems && (
+          <div className='grid3'>
+            {commonItemsForProject.map((item) => (
+              <button
+                key={item.id}
+                className={`cardBtn ${selectedCommonItem?.id === item.id ? 'active' : ''}`}
+                onClick={() => onSelectCommonItem(item)}
+              >
+                <div className='icon'>🔲</div>
+                <span>{item.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <Content
+          showStations={showStations}
+          stations={stationsToRender}
+          selectedStation={selectedStation}
+          onSelectStation={onSelectStation}
+        />
+
+        {showDocTypes && (
+          <div className='docTypeGrid'>
+            <button
+              className={`cardBtn smallCard ${selectedDocType === 'ODS' ? 'active' : ''}`}
+              onClick={() => onSelectDocType('ODS')}
+            >
+              <div className='icon'>📄</div>
+              <span>ODS</span>
+            </button>
+
+            <button
+              className={`cardBtn smallCard ${selectedDocType === 'TDS' ? 'active' : ''}`}
+              onClick={() => onSelectDocType('TDS')}
+            >
+              <div className='icon'>📑</div>
+              <span>TDS</span>
             </button>
           </div>
-          {authError && <div className='inlineError'>{authError}</div>}
-        </div>
+        )}
 
-        <div className='search'>
-          <input value={queryText} onChange={(e) => setQueryText(e.target.value)} placeholder='Hľadať…' />
-        </div>
-
-        <div className='projectList'>
-          {filteredProjects.map((p) => {
-            const expanded = expandedProjectId === p.id
-            const active = selectedProject?.id === p.id
-            const isEqcProject = p.id === '7'
-            const subProjects = getSubProjectsFor(p.id)
-            
-
-            return (
-              <div key={p.id}>
-                <button className={`projectBtn ${active ? 'active' : ''}`} onClick={() => onSelectProject(p)}>
-                  <div className='name'>
-                    {expanded ? '▾ ' : '▸ '} {p.name}
-                  </div>
-                </button>
-
-                {expanded && (
-                  <div className='folderList'>
-                    {isEqcProject ? (
-                      subProjects.map((sp) => {
-                        const spActive = selectedProject?.id === p.id && selectedSubProject?.id === sp.id
-
-                        return (
-                          <div key={sp.id} style={{ display: 'grid', gap: 8 }}>
-                            <button className={`projectBtn ${spActive ? 'active' : ''}`} onClick={() => onSelectSubProject(sp)}>
-                              <div className='name'>{sp.name}</div>
-                            </button>
-
-                            {spActive && (
-                              <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                {availableSides.map((side) => {
-                                  const sideActive = selectedSide === side
-
-                                  return (
-                                    <div key={side} style={{ display: 'grid', gap: 8 }}>
-                                      <button
-                                        className={`projectBtn ${sideActive ? 'active' : ''}`}
-                                        onClick={() => onSelectSide(side)}
-                                      >
-                                        <div className='name'>{sideLabel(side)}</div>
-                                      </button>
-
-                                      {sideActive && side === 'common' && (
-                                        <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                          {commonItemsForProject.length > 0 ? (
-                                            commonItemsForProject.map((it) => {
-                                              const itActive = selectedCommonItem?.id === it.id
-                                              return (
-                                                <div key={it.id} style={{ display: 'grid', gap: 8 }}>
-                                                  <button
-                                                    className={`projectBtn ${itActive ? 'active' : ''}`}
-                                                    onClick={() => onSelectCommonItem(it)}
-                                                  >
-                                                    <div className='name'>{it.name}</div>
-                                                  </button>
-
-                                                  {itActive && (
-                                                    <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                                      <button
-                                                        className={`projectBtn ${selectedDocType === 'ODS' ? 'active' : ''}`}
-                                                        onClick={() => onSelectDocType('ODS')}
-                                                      >
-                                                        <div className='name'>ODS</div>
-                                                      </button>
-                                                      <button
-                                                        className={`projectBtn ${selectedDocType === 'TDS' ? 'active' : ''}`}
-                                                        onClick={() => onSelectDocType('TDS')}
-                                                      >
-                                                        <div className='name'>TDS</div>
-                                                      </button>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              )
-                                            })
-                                          ) : (
-                                            <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                              <button
-                                                className={`projectBtn ${selectedDocType === 'ODS' ? 'active' : ''}`}
-                                                onClick={() => onSelectDocType('ODS')}
-                                              >
-                                                <div className='name'>ODS</div>
-                                              </button>
-                                              <button
-                                                className={`projectBtn ${selectedDocType === 'TDS' ? 'active' : ''}`}
-                                                onClick={() => onSelectDocType('TDS')}
-                                              >
-                                                <div className='name'>TDS</div>
-                                              </button>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-
-                                      {sideActive && side !== 'common' && (
-                                        <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                          {stationsForSelectedSide.map((st) => {
-                                            const stActive = selectedStation?.id === st.id
-
-                                            return (
-                                              <div key={st.id} style={{ display: 'grid', gap: 8 }}>
-                                                <button
-                                                  className={`projectBtn ${stActive ? 'active' : ''}`}
-                                                  onClick={() => onSelectStation(st)}
-                                                >
-                                                  <div className='name'>{st.name}</div>
-                                                </button>
-
-                                                {stActive && (
-                                                  <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                                    <button
-                                                      className={`projectBtn ${selectedDocType === 'ODS' ? 'active' : ''}`}
-                                                      onClick={() => onSelectDocType('ODS')}
-                                                    >
-                                                      <div className='name'>ODS</div>
-                                                    </button>
-                                                    <button
-                                                      className={`projectBtn ${selectedDocType === 'TDS' ? 'active' : ''}`}
-                                                      onClick={() => onSelectDocType('TDS')}
-                                                    >
-                                                      <div className='name'>TDS</div>
-                                                    </button>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })
-                    ) : (
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        {availableSides.map((side) => {
-                          const sideActive = selectedProject?.id === p.id && selectedSide === side
-
-                          return (
-                            <div key={side} style={{ display: 'grid', gap: 8 }}>
-                              <button className={`projectBtn ${sideActive ? 'active' : ''}`} onClick={() => onSelectSide(side)}>
-                                <div className='name'>{sideLabel(side)}</div>
-                              </button>
-
-                              {sideActive && side === 'common' && (
-                                <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                  {commonItemsForProject.length > 0 ? (
-                                    commonItemsForProject.map((it) => {
-                                      const itActive = selectedCommonItem?.id === it.id
-                                      return (
-                                        <div key={it.id} style={{ display: 'grid', gap: 8 }}>
-                                          <button
-                                            className={`projectBtn ${itActive ? 'active' : ''}`}
-                                            onClick={() => onSelectCommonItem(it)}
-                                          >
-                                            <div className='name'>{it.name}</div>
-                                          </button>
-
-                                          {itActive && (
-                                            <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                              <button
-                                                className={`projectBtn ${selectedDocType === 'ODS' ? 'active' : ''}`}
-                                                onClick={() => onSelectDocType('ODS')}
-                                              >
-                                                <div className='name'>ODS</div>
-                                              </button>
-                                              <button
-                                                className={`projectBtn ${selectedDocType === 'TDS' ? 'active' : ''}`}
-                                                onClick={() => onSelectDocType('TDS')}
-                                              >
-                                                <div className='name'>TDS</div>
-                                              </button>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )
-                                    })
-                                  ) : (
-                                    <>
-                                      <button
-                                        className={`projectBtn ${selectedDocType === 'ODS' ? 'active' : ''}`}
-                                        onClick={() => onSelectDocType('ODS')}
-                                      >
-                                        <div className='name'>ODS</div>
-                                      </button>
-                                      <button
-                                        className={`projectBtn ${selectedDocType === 'TDS' ? 'active' : ''}`}
-                                        onClick={() => onSelectDocType('TDS')}
-                                      >
-                                        <div className='name'>TDS</div>
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-
-                              {sideActive && side !== 'common' && (
-                                <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                  {(side === 'front'
-                                    ? stationsByProjectSides[p.id]?.front
-                                    : stationsByProjectSides[p.id]?.rear
-                                  )?.map((st) => {
-                                    const stActive = selectedStation?.id === st.id
-
-                                    return (
-                                      <div key={st.id} style={{ display: 'grid', gap: 8 }}>
-                                        <button
-                                          className={`projectBtn ${stActive ? 'active' : ''}`}
-                                          onClick={() => onSelectStation(st)}
-                                        >
-                                          <div className='name'>{st.name}</div>
-                                        </button>
-
-                                        {stActive && (
-                                          <div style={{ marginLeft: 14, display: 'grid', gap: 8 }}>
-                                            <button
-                                              className={`projectBtn ${selectedDocType === 'ODS' ? 'active' : ''}`}
-                                              onClick={() => onSelectDocType('ODS')}
-                                            >
-                                              <div className='name'>ODS</div>
-                                            </button>
-                                            <button
-                                              className={`projectBtn ${selectedDocType === 'TDS' ? 'active' : ''}`}
-                                              onClick={() => onSelectDocType('TDS')}
-                                            >
-                                              <div className='name'>TDS</div>
-                                            </button>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        <div className='sidebarFooter'>
-          <button className='btn' onClick={resetAll}>
-            späť
-          </button>
-        </div>
-      </aside>
-
-<div className="rightPanel">   
-  <TopBar
-    title={title}
-    canUseOpenPrint={canUseOpenPrint}
-    canUpload={canUpload}
-    canDelete={canDelete}
-    isAdmin={isAdmin}
-    uploadInputRef={uploadInputRef}
-    openSelected={openSelected}
-    printSelected={printSelected}
-    deleteFile={() => activeFile && deleteFile(activeFile)}
-    uploadFile={uploadFile}
-    loadFiles={loadFiles}
-    selectedDocType={selectedDocType}
-    folderId={folderId}
-  />
-
-  
-
-<FileList
-  files={files}
-  activeFile={activeFile}
-  loading={loading}
-  selectedProject={selectedProject}
-  folderId={folderId}
-  selectedDocType={selectedDocType}
-  isAdmin={isAdmin}
-  setActiveFile={setActiveFile}
-  isPdfName={isPdfName}
-  isExcelName={isExcelName}
-
-  />
-  </div>
-  
-<PdfModal
-  openDoc={openDoc}
-  isPdfName={isPdfName}
-  setOpenDoc={setOpenDoc}
-  printFromModal={printFromModal}
-/>
-
-       
+        <FileList
+          files={files}
+          activeFile={activeFile}
+          loading={loading}
+          selectedProject={selectedProject}
+          folderId={folderId}
+          selectedDocType={selectedDocType}
+          isAdmin={isAdmin}
+          setActiveFile={setActiveFile}
+          isPdfName={isPdfName}
+          isExcelName={isExcelName}
+        />
       </div>
+
+      <PdfModal
+        openDoc={openDoc}
+        isPdfName={isPdfName}
+        setOpenDoc={setOpenDoc}
+        printFromModal={printFromModal}
+      />
+    </div>
   )
 }

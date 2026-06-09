@@ -52,7 +52,7 @@ body {
   object-fit: contain;
   display: block;
 
-  /* jemný “card” look */
+  
   padding: 6px 10px;
   border-radius: 12px;
   background: rgba(255,255,255,0.92);
@@ -291,7 +291,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 18px;
-  z-index: 50;
+  z-index: 9999;
 }
 .modal {
   width: min(1100px, 100%);

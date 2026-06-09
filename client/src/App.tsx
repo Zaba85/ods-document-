@@ -387,7 +387,7 @@ export default function App() {
   return (
     <div className='app'>
       <aside className='sidebar'>
-        <div className='headerCard'>
+      <div className='headerCard'>
           <div className='appMark'>
             <img className='appLogoImg' src={logo} alt='Yanfeng' />
             <div className='appNameBlock'>
@@ -420,6 +420,7 @@ export default function App() {
             const active = selectedProject?.id === p.id
             const isEqcProject = p.id === '7'
             const subProjects = getSubProjectsFor(p.id)
+            
 
             return (
               <div key={p.id}>
@@ -670,23 +671,24 @@ export default function App() {
         </div>
       </aside>
 
-      <TopBar
-  title={title}
-  canUseOpenPrint={canUseOpenPrint}
-  canUpload={canUpload}
-  canDelete={canDelete}
-  isAdmin={isAdmin}
-  uploadInputRef={uploadInputRef}
+<div className="rightPanel">   
+  <TopBar
+    title={title}
+    canUseOpenPrint={canUseOpenPrint}
+    canUpload={canUpload}
+    canDelete={canDelete}
+    isAdmin={isAdmin}
+    uploadInputRef={uploadInputRef}
+    openSelected={openSelected}
+    printSelected={printSelected}
+    deleteFile={() => activeFile && deleteFile(activeFile)}
+    uploadFile={uploadFile}
+    loadFiles={loadFiles}
+    selectedDocType={selectedDocType}
+    folderId={folderId}
+  />
 
-  openSelected={openSelected}
-  printSelected={printSelected}
-  deleteFile={() => activeFile && deleteFile(activeFile)}
-  uploadFile={uploadFile}
-  loadFiles={loadFiles}
-
-  selectedDocType={selectedDocType}
-  folderId={folderId}
-/>
+  
 
 <FileList
   files={files}
@@ -699,8 +701,11 @@ export default function App() {
   setActiveFile={setActiveFile}
   isPdfName={isPdfName}
   isExcelName={isExcelName}
-/>
-``<PdfModal
+
+  />
+  </div>
+  
+<PdfModal
   openDoc={openDoc}
   isPdfName={isPdfName}
   setOpenDoc={setOpenDoc}

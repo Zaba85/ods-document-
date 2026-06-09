@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import type { ServerFile } from '../lib/utils/types'
 
 type Props = {
@@ -15,7 +16,7 @@ export default function PdfModal({
 }: Props) {
   if (!openDoc?.url || !isPdfName(openDoc.name)) return null
 
-  return (
+  return createPortal(
     <div className='modalBackdrop' onClick={() => setOpenDoc(null)}>
       <div className='modal' onClick={(e) => e.stopPropagation()}>
         <div className='modalTop'>
@@ -32,6 +33,7 @@ export default function PdfModal({
 
         <iframe id='pdfFrame' title='pdf' src={openDoc.url} />
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

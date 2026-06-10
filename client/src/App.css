@@ -1,7 +1,7 @@
 :root {
   --bg: #0b1220;
   --panel: #0f1a2d;
-  --text: #e8eefc;
+  --text: #ecf0fbf6;
   --muted: #a7b4d6;
   --line: rgba(255,255,255,0.10);
   --accent: #7c5cff;
@@ -50,7 +50,7 @@ body {
 
 
 .headerCard {
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: 18px;
   background: rgba(255,255,255,0.04);
   padding: 12px;
@@ -65,12 +65,12 @@ body {
 .appLogoImg {
   width: 110px;
   border-radius: 10px;
-  background: white;
+  background: rgba(255, 255, 255, 0.987);
   padding: 4px;
 }
 
 .appName { font-weight: 800; }
-.appTag { font-size: 11px; color: var(--muted); }
+.appTag { font-size: 12px; color: var(--muted); }
 
 /* ===== SEARCH ===== */
 
@@ -96,7 +96,7 @@ body {
   padding-right: 4px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
   min-height: 0;
 }
@@ -106,13 +106,13 @@ body {
 }
 
 .projectList::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.151);
   border-radius: 10px;
 }
 
 .projectBtn {
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,0.03);
+  border: 2px solid var(--line);
+  background: rgba(255, 255, 255, 0.123);
   padding: 10px;
   border-radius: 14px;
   cursor: pointer;
@@ -136,7 +136,7 @@ body {
   padding: 22px 22px 26px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 30px;
 }
 
 .rightPanel::-webkit-scrollbar {
@@ -200,14 +200,14 @@ body {
 
 .cardBtn.big {
   min-height: 100px;
-  font-size: 14px;
+  font-size: 20px;
 }
 
 /* ===== STATIONS (menšie) ===== */
 
 .cardBtn.small {
   min-height: 45px;
-  font-size: 12px;
+  font-size: 20px;
   padding: 6px;
 }
 
@@ -215,7 +215,7 @@ body {
 
 .smallCard {
   min-height: 50px;
-  font-size: 12px;
+  font-size: 20px;
 }
 
 /* ===== ICON ===== */
@@ -230,7 +230,7 @@ body {
   justify-content: center;
 
   background: rgba(255,255,255,0.08);
-  font-size: 12px;
+  font-size: 25px;
 }
 
 .cardBtn.big .icon {
@@ -252,15 +252,25 @@ body {
 /* ===== TOPBAR BUTTONY ===== */
 
 .btn {
-  border: 1px solid var(--line);
+  border: 3px solid var(--line);
   background: rgba(255,255,255,0.04);
   padding: 8px 10px;
-  border-radius: 10px;
-  font-size: 12px;
+  border-radius: 15px;
+  font-size:15px;
   cursor: pointer;
   transition: 0.2s;
+  
 }
 
 .btn:hover {
   background: rgba(255,255,255,0.08);
+}
+.langGrid {
+  display: grid;
+  font-size: 20px; 
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+.langGrid .cardBtn {
+  font-size: 30px;   /* zväčší vlajku */
 }

@@ -1,22 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import logo from './assets/logo.png'
-import { DocType, Project, ServerFile, SideId, Station, SubProject } from './lib/utils/types'
+import SubprojectGrid from './components/SubprojectGrid'
+import LangSelector from './components/LangSelector'
+import DocTypeGrid from './components/DocTypeGrid'
+import {DocType,Project,ServerFile,SideId,Station,SubProject,} from './lib/utils/types'
 import {commonNodesByProject,projects,stationsByProjectSides,stationsBySubProject,} from './lib/utils/configTree'
-import {getSubProjectsFor,isPdfName,isExcelName,openInNewTab,sideLabel,buildFolderId,} from './lib/utils/helpers'
-import { computeViewState } from './lib/utils/viewLogic'
+import {getSubProjectsFor,isPdfName,isExcelName,openInNewTab,sideLabel,} from './lib/utils/helpers'
 import TopBar from './components/TopBar'
 import FileList from './components/FileList'
 import LoginScreen from './components/LoginScreen'
 import PdfModal from './components/PdfModal'
 import Sidebar from './components/Sidebar'
 import Content from './components/Content'
+import SideGrid from './components/SideGrid'
+import CommonItemsGrid from './components/CommonItemsGrid'
 
 const API_BASE = 'http://localhost:3000/api'
 
 type Role = 'user' | 'admin'
 type CommonItem = { id: string; name: string }
-
+type Lang = 'EN' | 'UK' | 'SK'
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [role, setRole] = useState<Role | null>(null)
@@ -33,6 +37,7 @@ export default function App() {
   const [selectedSubProject, setSelectedSubProject] = useState<SubProject | null>(null)
   const [selectedSide, setSelectedSide] = useState<SideId | null>(null)
   const [selectedStation, setSelectedStation] = useState<Station | null>(null)
+  const [selectedLang, setSelectedLang] = useState<Lang | null>(null)
   const [selectedCommonItem, setSelectedCommonItem] = useState<CommonItem | null>(null)
   const [selectedDocType, setSelectedDocType] = useState<DocType | null>(null)
 
@@ -50,6 +55,11 @@ export default function App() {
     if (!q) return projects
     return projects.filter((p) => p.name.toLowerCase().includes(q))
   }, [queryText])
+
+  const isSubProjectProject =
+    selectedProject?.id === '7' ||
+    selectedProject?.id === '10' ||
+    selectedProject?.id === '14'
 
   const availableSides = useMemo<SideId[]>(() => {
     if (!selectedProject) return []
@@ -81,30 +91,101 @@ export default function App() {
     return commonNodesByProject[selectedProject.id] ?? []
   }, [selectedProject])
 
+  const stationsToRender =
+    selectedProject?.id === '10' || selectedProject?.id === '14'
+      ? stationsForSelectedSubProject
+      : stationsForSelectedSide
+
+  const showSubprojects =
+    isSubProjectProject && !!selectedProject && !selectedSubProject
+
+  // Slot a IMG nepoužívajú FRONT/REAR
+  const showSides =
+    selectedProject?.id !== '10' &&
+    selectedProject?.id !== '14' &&
+    !!selectedProject &&
+    (!isSubProjectProject || !!selectedSubProject)
+
+  const showCommonItems =
+    selectedSide === 'common' && commonItemsForProject.length > 0
+
+  const showStations =
+    ((selectedProject?.id === '10' || selectedProject?.id === '14') && !!selectedSubProject) ||
+    (
+      selectedProject?.id !== '10' &&
+      selectedProject?.id !== '14' &&
+      !!selectedSide &&
+      selectedSide !== 'common'
+    )
+
+  const showLangSelector =
+    ((selectedProject?.id === '10' || selectedProject?.id === '14') && !!selectedStation) ||
+    (
+      selectedProject?.id !== '10' &&
+      selectedProject?.id !== '14' &&
+      (
+        (selectedSide === 'common' &&
+          ((commonItemsForProject.length > 0 && !!selectedCommonItem) ||
+            commonItemsForProject.length === 0)
+        ) ||
+        (selectedSide !== null &&
+          selectedSide !== 'common' &&
+          !!selectedStation)
+      )
+    )
+
+  const showDocTypes =
+    ((selectedProject?.id === '7' ||
+      selectedProject?.id === '10' ||
+      selectedProject?.id === '14')
+      ? !!selectedStation && !!selectedLang
+      : (
+          (selectedSide === 'common' &&
+            ((commonItemsForProject.length > 0 && !!selectedCommonItem) ||
+              commonItemsForProject.length === 0)
+          ) ||
+          (selectedSide !== null &&
+            selectedSide !== 'common' &&
+            !!selectedStation)
+        ) && !!selectedLang
+    )
+
   const folderId = useMemo(() => {
     if (!selectedProject) return null
+    if (!selectedLang) return null
 
-    // Slot Coater: project -> subproject -> station -> ODS/TDS
-    if (selectedProject.id === '14') {
+    // EQC + IMG + Slot = subproject projekty
+    if (
+      selectedProject.id === '7' ||
+      selectedProject.id === '10' ||
+      selectedProject.id === '14'
+    ) {
       if (!selectedSubProject || !selectedStation) return null
-      return buildFolderId(selectedProject.id, selectedSubProject.id, 'front', selectedStation.id)
+      return `${selectedProject.id}_${selectedSubProject.id}_${selectedStation.id}_${selectedLang}`
     }
 
+    // normálne projekty
     if (!selectedSide) return null
-
-    const subId = selectedProject.id === '7' ? (selectedSubProject?.id ?? null) : null
 
     if (selectedSide === 'common') {
       if ((commonNodesByProject[selectedProject.id] ?? []).length > 0) {
         if (!selectedCommonItem) return null
-        return buildFolderId(selectedProject.id, subId, 'common', undefined, selectedCommonItem.id)
+        return `common__${selectedCommonItem.id}_${selectedLang}`
       }
-      return buildFolderId(selectedProject.id, subId, 'common')
+      return `common_${selectedLang}`
     }
 
     if (!selectedStation) return null
-    return buildFolderId(selectedProject.id, subId, selectedSide, selectedStation.id)
-  }, [selectedProject, selectedSubProject, selectedSide, selectedStation, selectedCommonItem])
+
+    return `${selectedSide}_${selectedStation.id}_${selectedLang}`
+  }, [
+    selectedProject,
+    selectedSubProject,
+    selectedSide,
+    selectedStation,
+    selectedCommonItem,
+    selectedLang,
+  ])
 
   const loadFiles = async () => {
     if (!selectedProject || !folderId || !selectedDocType) {
@@ -187,8 +268,6 @@ export default function App() {
   }
 
   const deleteFile = async (f: ServerFile) => {
-    console.log('DELETE FILE:', f)
-
     if (!isAdmin) return
     setLoading(true)
     setAuthError(null)
@@ -222,6 +301,7 @@ export default function App() {
   const resetLower = () => {
     setSelectedSide(null)
     setSelectedStation(null)
+    setSelectedLang(null)
     setSelectedCommonItem(null)
     setSelectedDocType(null)
     setFiles([])
@@ -243,6 +323,7 @@ export default function App() {
   const onSelectSide = (side: SideId) => {
     setSelectedSide(side)
     setSelectedStation(null)
+    setSelectedLang(null)
     setSelectedCommonItem(null)
     setSelectedDocType(null)
     setFiles([])
@@ -252,6 +333,7 @@ export default function App() {
 
   const onSelectStation = (st: Station) => {
     setSelectedStation(st)
+    setSelectedLang(null)
     setSelectedDocType(null)
     setFiles([])
     setActiveFile(null)
@@ -260,6 +342,7 @@ export default function App() {
 
   const onSelectCommonItem = (item: CommonItem) => {
     setSelectedCommonItem(item)
+    setSelectedLang(null)
     setSelectedDocType(null)
     setFiles([])
     setActiveFile(null)
@@ -312,20 +395,29 @@ export default function App() {
 
     const parts: string[] = [selectedProject.name]
 
-    if ((selectedProject.id === '7' || selectedProject.id === '14') && selectedSubProject) {
+    if (
+      (selectedProject.id === '7' ||
+        selectedProject.id === '10' ||
+        selectedProject.id === '14') &&
+      selectedSubProject
+    ) {
       parts.push(selectedSubProject.name)
     }
 
-    if (selectedProject.id !== '14' && selectedSide) {
+    if (selectedProject.id !== '10' && selectedProject.id !== '14' && selectedSide) {
       parts.push(sideLabel(selectedSide))
     }
 
-    if (selectedSide === 'common' && selectedCommonItem) {
+    if (selectedCommonItem) {
       parts.push(selectedCommonItem.name)
     }
 
     if (selectedStation) {
       parts.push(selectedStation.name)
+    }
+
+    if (selectedLang) {
+      parts.push(selectedLang)
     }
 
     if (selectedDocType) {
@@ -338,8 +430,9 @@ export default function App() {
     selectedSubProject,
     selectedSide,
     selectedStation,
-    selectedDocType,
     selectedCommonItem,
+    selectedLang,
+    selectedDocType,
   ])
 
   const doLogout = () => {
@@ -404,11 +497,10 @@ export default function App() {
       } finally {
         setLoginLoading(false)
       }
-
       return
     }
 
-    setLoginError("Neznáme meno. Použi 'user' alebo 'admin'.")
+  setLoginError("Neznáme meno. Použi 'user' alebo 'admin'.")
   }
 
   if (!isLoggedIn) {
@@ -425,26 +517,6 @@ export default function App() {
       />
     )
   }
-
-  const {
-    showSubprojects,
-    showSides,
-    showCommonItems,
-    showStations,
-    showDocTypes,
-  } = computeViewState({
-    selectedProject,
-    selectedSubProject,
-    selectedSide,
-    selectedStation,
-    commonItemsForProject,
-    selectedCommonItem,
-  })
-
-  const stationsToRender =
-    selectedProject?.id === '14'
-      ? stationsForSelectedSubProject
-      : stationsForSelectedSide
 
   return (
     <div className='app'>
@@ -472,7 +544,13 @@ export default function App() {
           openSelected={openSelected}
           printSelected={printSelected}
           deleteFile={() => {
-            if (activeFile) void deleteFile(activeFile)
+            if (!activeFile) return
+            const confirmDelete = window.confirm(
+              `Naozaj chceš zmazať "${activeFile.name}"?`
+            )
+            if (confirmDelete) {
+              void deleteFile(activeFile)
+            }
           }}
           uploadFile={uploadFile}
           loadFiles={loadFiles}
@@ -480,102 +558,63 @@ export default function App() {
           folderId={folderId}
         />
 
-        {showSubprojects && selectedProject && (
-          <div className='grid3'>
-            {getSubProjectsFor(selectedProject.id).map((sp) => (
-              <button
-                key={sp.id}
-                className={`cardBtn ${selectedSubProject?.id === sp.id ? 'active' : ''}`}
-                onClick={() => onSelectSubProject(sp)}
-              >
-                <div className='icon'>📁</div>
-                <span>{sp.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
+<SubprojectGrid
+  show={showSubprojects}
+  subProjects={getSubProjectsFor(selectedProject?.id || '')}
+  selectedSubProject={selectedSubProject}
+  onSelect={onSelectSubProject}
+/>
+<SideGrid
+  show={showSides}
+  availableSides={availableSides}
+  selectedSide={selectedSide}
+  onSelect={onSelectSide}
+/>
 
-        {showSides && (
-          <div className='grid3'>
-            {availableSides.map((side) => (
-              <button
-                key={side}
-                className={`cardBtn big ${selectedSide === side ? 'active' : ''} ${side}`}
-                onClick={() => onSelectSide(side)}
-              >
-                <div className='icon'>
-                  {side === 'front' && '🟦'}
-                  {side === 'rear' && '🟧'}
-                  {side === 'common' && '🟪'}
-                </div>
-                <span>{sideLabel(side)}</span>
-              </button>
-            ))}
-          </div>
-        )}
+<CommonItemsGrid
+  show={showCommonItems}
+  items={commonItemsForProject}
+  selectedItem={selectedCommonItem}
+  onSelect={onSelectCommonItem}
+/>
+ <Content
+  showStations={showStations}
+  stations={stationsToRender}
+  selectedStation={selectedStation}
+  onSelectStation={onSelectStation}
+ />
 
-        {showCommonItems && (
-          <div className='grid3'>
-            {commonItemsForProject.map((item) => (
-              <button
-                key={item.id}
-                className={`cardBtn ${selectedCommonItem?.id === item.id ? 'active' : ''}`}
-                onClick={() => onSelectCommonItem(item)}
-              >
-                <div className='icon'>🔲</div>
-                <span>{item.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
+<LangSelector
+  show={showLangSelector}
+  selectedLang={selectedLang}
+  setSelectedLang={setSelectedLang}
+/>
+<DocTypeGrid
+  show={showDocTypes}
+  selectedDocType={selectedDocType}
+  onSelect={onSelectDocType}
+/>
 
-        <Content
-          showStations={showStations}
-          stations={stationsToRender}
-          selectedStation={selectedStation}
-          onSelectStation={onSelectStation}
-        />
+<FileList
+files={files}
+activeFile={activeFile}
+loading={loading}
+selectedProject={selectedProject}
+folderId={folderId}
+selectedDocType={selectedDocType}
+isAdmin={isAdmin}
+setActiveFile={setActiveFile}
+isPdfName={isPdfName}
+isExcelName={isExcelName}
+/>
+</div>
 
-        {showDocTypes && (
-          <div className='docTypeGrid'>
-            <button
-              className={`cardBtn smallCard ${selectedDocType === 'ODS' ? 'active' : ''}`}
-              onClick={() => onSelectDocType('ODS')}
-            >
-              <div className='icon'>📄</div>
-              <span>ODS</span>
-            </button>
-
-            <button
-              className={`cardBtn smallCard ${selectedDocType === 'TDS' ? 'active' : ''}`}
-              onClick={() => onSelectDocType('TDS')}
-            >
-              <div className='icon'>📑</div>
-              <span>TDS</span>
-            </button>
-          </div>
-        )}
-
-        <FileList
-          files={files}
-          activeFile={activeFile}
-          loading={loading}
-          selectedProject={selectedProject}
-          folderId={folderId}
-          selectedDocType={selectedDocType}
-          isAdmin={isAdmin}
-          setActiveFile={setActiveFile}
-          isPdfName={isPdfName}
-          isExcelName={isExcelName}
-        />
-      </div>
-
-      <PdfModal
-        openDoc={openDoc}
-        isPdfName={isPdfName}
-        setOpenDoc={setOpenDoc}
-        printFromModal={printFromModal}
-      />
-    </div>
+<PdfModal
+openDoc={openDoc}
+isPdfName={isPdfName}
+setOpenDoc={setOpenDoc}
+printFromModal={printFromModal}
+/>
+ </div>
   )
 }

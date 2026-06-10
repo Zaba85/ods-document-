@@ -1,60 +1,41 @@
 import type { SideId, SubProject } from './types'
-import { eqcSubProjects, slotSubProjects } from './configTree'
+import {
+  eqcSubProjects,
+  imgCoveringSubProjects,
+  slotSubProjects,
+} from './configTree'
 
-/**
- * Vráti subprojekty (napr. EQC)
- */
 export function getSubProjectsFor(projectId: string): SubProject[] {
   if (projectId === '7') return eqcSubProjects
+  if (projectId === '10') return imgCoveringSubProjects
   if (projectId === '14') return slotSubProjects
-
   return []
- 
 }
 
-/**
- * Rozpozná PDF súbor podľa názvu
- */
 export function isPdfName(name: string): boolean {
   return name.toLowerCase().endsWith('.pdf')
 }
 
-/**
- * Rozpozná Excel súbor
- */
 export function isExcelName(name: string): boolean {
   const n = name.toLowerCase()
   return n.endsWith('.xls') || n.endsWith('.xlsx')
 }
 
-/**
- * Label pre stranu (FRONT / REAR / COMMON)
- */
 export function sideLabel(side: SideId): string {
   if (side === 'front') return 'FRONT'
   if (side === 'rear') return 'REAR'
   return 'FRONT/REAR'
 }
 
-/**
- * Otvorenie URL v novom tabe
- */
 export function openInNewTab(url?: string) {
   if (!url) return
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-/**
- * Vygeneruje folderId podľa výberu v strome
- */
 export function buildFolderId(
-  projectId: string,
-  subId: string | null,
-  side: SideId,
-  stationId?: string,
-  commonItemId?: string,
+projectId: string, subId: string | null, selectedSide: string, id: string, side: SideId, stationId?: string, commonItemId?: string,
 ): string {
-  // EQC projekt
+  // EQC
   if (projectId === '7') {
     if (side === 'common') {
       if (commonItemId) {
@@ -64,6 +45,11 @@ export function buildFolderId(
     }
 
     return `eqc_${subId ?? 'na'}_${side}_${stationId ?? 'na'}`
+  }
+
+  // IMG Covering + Slot Coater => subproject + station (bez side logiky)
+  if (projectId === '10' || projectId === '14') {
+    return `${projectId}_${subId ?? 'na'}_${stationId ?? 'na'}`
   }
 
   // normálne projekty
